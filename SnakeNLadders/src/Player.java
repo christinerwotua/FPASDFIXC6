@@ -1,5 +1,5 @@
-import java.awt.Color;
-import java.awt.Image;
+import java.awt.*;
+import java.awt.image.BufferedImage;
 
 public class Player {
     private final String name;
@@ -8,17 +8,14 @@ public class Player {
     private final boolean bot;
 
     private int score = 0;
-
-    // dipakai untuk prime-start shortcut rule
     private int lastPositionId = 1;
 
-    // === NEW: icon karakter ===
-    private Image icon;
+    // optional icon
+    private BufferedImage icon;
 
-
-    public Player(String name, Node startNode, Color color, boolean bot) {
+    public Player(String name, Node start, Color color, boolean bot) {
         this.name = name;
-        this.currentPosition = startNode;
+        this.currentPosition = start;
         this.color = color;
         this.bot = bot;
     }
@@ -30,7 +27,10 @@ public class Player {
     public boolean isBot() { return bot; }
 
     public int getScore() { return score; }
-    public void addScore(int points) { this.score += points; }
+    public void addScore(int pts) { score += pts; }
+
+    public int getLastPositionId() { return lastPositionId; }
+    public void setLastPositionId(int id) { lastPositionId = id; }
 
     public void stepForward() {
         if (currentPosition != null && currentPosition.next != null) {
@@ -38,10 +38,6 @@ public class Player {
         }
     }
 
-    public int getLastPositionId() { return lastPositionId; }
-    public void setLastPositionId(int id) { this.lastPositionId = id; }
-
-    // === NEW: icon getter/setter ===
-    public Image getIcon() { return icon; }
-    public void setIcon(Image icon) { this.icon = icon; }
+    public BufferedImage getIcon() { return icon; }
+    public void setIcon(BufferedImage icon) { this.icon = icon; }
 }

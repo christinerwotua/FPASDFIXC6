@@ -5,7 +5,6 @@ import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.geom.Point2D;
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -15,69 +14,38 @@ import java.util.Random;
 
 public class MainGameGUI extends JFrame {
 
-    // =====================================================================================
     // THEME
-    // =====================================================================================
-    public static final Color ZOO_BG_TOP       = new Color(10, 24, 54);
-    public static final Color ZOO_BG_BOTTOM    = new Color(40, 18, 60);
+    public static final Color ZOO_BG_TOP       = new Color(12, 14, 22);
+    public static final Color ZOO_BG_BOTTOM    = new Color(22, 26, 36);
 
-    public static final Color UI_PANEL_BG      = new Color(14, 34, 72);
-    public static final Color NEON_CYAN        = new Color(80, 240, 255);
-    public static final Color UI_TEXT_GOLD     = new Color(255, 214, 90);
+    public static final Color NEON_CYAN        = new Color(190, 210, 235);
+    public static final Color UI_TEXT_GOLD     = new Color(235, 200, 120);
     public static final Color TEXT_WHITE       = new Color(245, 248, 255);
-    public static final Color TEXT_MUTED       = new Color(200, 210, 230);
+    public static final Color TEXT_MUTED       = new Color(190, 200, 220);
 
-    public static final Color BTN_PRIMARY_BG   = new Color(45, 140, 210);
-    public static final Color BTN_ACCENT_BG    = new Color(255, 160, 60);
-    public static final Color BTN_DANGER_BG    = new Color(255, 120, 120);
+    public static final Color BTN_PRIMARY_BG   = new Color(70, 120, 170);
+    public static final Color BTN_ACCENT_BG    = new Color(190, 140, 90);
+    public static final Color BTN_DANGER_BG    = new Color(200, 95, 95);
 
-    public static final Color TILE_PAVEMENT    = new Color(52, 56, 70);
-    public static final Color TILE_BORDER      = new Color(110, 120, 140);
+    public static final String SAVE_FILE_NAME  = "zpd_top_agent.txt";
 
-    public static final Color ITEM_BADGE       = new Color(255, 219, 90);
+    // AUDIO FILES (taruh di folder project / same directory)
+    public static final String BGM_FILE        = "backsound.wav";
+    public static final String SFX_DICE        = "dice.wav";
+    public static final String SFX_WALK        = "walk.wav";
+    public static final String SFX_PAWPSICLE   = "pawpsicle.wav";
+    public static final String SFX_CRATE       = "crate.wav";
+    public static final String SFX_LADDER      = "ladder.wav";
+    public static final String SFX_DENIED      = "denied.wav";
+    public static final String SFX_WIN         = "win.wav";
 
-    public static final Color CHAR_JUDY_BLUE   = new Color(60, 190, 255);
-    public static final Color CHAR_NICK_ORANGE = new Color(255, 140, 60);
-    public static final Color CHAR_BOGO_GREY   = new Color(135, 145, 155);
-    public static final Color CHAR_GAZELLE_GOLD= new Color(255, 210, 80);
-
-    private static final String SAVE_FILE_NAME = "zpd_top_agent.txt";
-
-    // =====================================================================================
-    // AUDIO FILE NAMES (taruh .wav di folder project / root)
-    // =====================================================================================
-    private static final String BGM_FILE        = "backsound.wav";
-    private static final String SFX_DICE        = "dice.wav";
-    private static final String SFX_WALK        = "walk.wav";      // dipakai audio.playWalkSound()
-    private static final String SFX_PAWPSICLE   = "pawpsicle.wav";
-    private static final String SFX_CRATE       = "crate.wav";
-    private static final String SFX_LADDER      = "ladder.wav";
-    private static final String SFX_DENIED      = "denied.wav";
-    // win.wav dipakai audio.playWinSound() (cek AudioManager kamu)
-
-    // =====================================================================================
-    // PLAYER ICON FILES (PNG recommended, transparent)
-    // taruh file png di root project (sejajar .wav) biar kebaca
-    // =====================================================================================
-    private static final String ICON_JUDY    = "judy.png";
-    private static final String ICON_NICK    = "nick.png";
-    private static final String ICON_BOGO    = "bogo.png";
-    private static final String ICON_GAZELLE = "gazelle.png";
-    private static final String ICON_FLASH   = "flash.png"; // opsional
-
-    // =====================================================================================
-    // MENU REF
-    // =====================================================================================
     private final StartMenuGUI menu;
 
-    // =====================================================================================
-    // GAME STATE
-    // =====================================================================================
     private Board gameBoard;
     private Queue<Player> turnQueue;
 
     private GamePanel gamePanel;
-    private ControlPanel controlPanel;
+    public ControlPanel controlPanel;
 
     private boolean isGameRunning = false;
 
@@ -86,27 +54,31 @@ public class MainGameGUI extends JFrame {
     private javax.swing.Timer ladderAnimationTimer;
     private javax.swing.Timer lockAnimationTimer;
 
-    // Anim state
+    // anim
     private Player animatingPlayer = null;
     private Point2D.Double currentAnimPos = null;
     private Point2D.Double targetAnimPos = null;
     private boolean currentTurnIsForward = true;
 
+    // lock ui
     private int activeLockNodeId = -1;
     private double lockAngle = 0;
     private boolean isLockOpen = false;
     private boolean isLockShaking = false;
 
-    // audio manager
+    // audio
     private final AudioManager audio = new AudioManager();
 
     private enum Mode { PVP, PVC }
     private Mode lastMode = Mode.PVP;
     private int lastPvPCount = 2;
 
-    // =====================================================================================
-    // CONSTRUCTOR
-    // =====================================================================================
+    // player colors
+    public static final Color CHAR_JUDY_BLUE   = new Color(100, 170, 220);
+    public static final Color CHAR_NICK_ORANGE = new Color(220, 150, 90);
+    public static final Color CHAR_BOGO_GREY   = new Color(160, 165, 175);
+    public static final Color CHAR_GAZELLE_GOLD= new Color(210, 190, 120);
+
     public MainGameGUI(StartMenuGUI menu) {
         this.menu = menu;
 
@@ -136,7 +108,7 @@ public class MainGameGUI extends JFrame {
         boardContainer.setBorder(new EmptyBorder(20, 20, 20, 20));
 
         gamePanel = new GamePanel(this);
-        gamePanel.setBorder(new LineBorder(NEON_CYAN, 3, true));
+        gamePanel.setBorder(new LineBorder(new Color(220, 225, 235, 140), 3, true));
         boardContainer.add(gamePanel, BorderLayout.CENTER);
         add(boardContainer, BorderLayout.CENTER);
 
@@ -154,41 +126,29 @@ public class MainGameGUI extends JFrame {
 
         SwingUtilities.invokeLater(() -> {
             showRulesDialog();
-            setupGameMode(); // cancel => back menu
+            setupGameMode();
         });
     }
 
-    // =====================================================================================
-    // GETTERS (dipakai GamePanel / ControlPanel)
-    // =====================================================================================
+    // getters for GamePanel
     public Board getGameBoard() { return gameBoard; }
     public Queue<Player> getTurnQueue() { return turnQueue; }
-
     public int getActiveLockNodeId() { return activeLockNodeId; }
     public boolean isLockOpen() { return isLockOpen; }
     public boolean isLockShaking() { return isLockShaking; }
-
     public Player getAnimatingPlayer() { return animatingPlayer; }
     public Point2D.Double getCurrentAnimPos() { return currentAnimPos; }
 
-    public String getSaveFileName() { return SAVE_FILE_NAME; }
-
-    // =====================================================================================
-    // UI callbacks from ControlPanel
-    // =====================================================================================
+    // UI callbacks
     public void onVolumeChanged(int value) {
         audio.setBgmVolume(value);
     }
 
-    public void toggleSFXMuteFromUI() {
-        audio.toggleMuteAll(); // mute BGM + SFX
+    public void toggleMuteAllFromUI() {
+        audio.toggleMuteAll();
         controlPanel.updateMuteButton(audio.isMuted());
     }
 
-
-    // =====================================================================================
-    // NAV / CLOSE
-    // =====================================================================================
     private void backToMenu() {
         stopAllTimers();
         audio.stopWalkSound();
@@ -200,28 +160,7 @@ public class MainGameGUI extends JFrame {
         dispose();
     }
 
-    // =====================================================================================
-    // ICON LOADER (PNG)
-    // =====================================================================================
-    private Image loadIcon(String fileName) {
-        try {
-            // 1) classpath (src)
-            java.net.URL url = getClass().getResource("/" + fileName);
-            if (url != null) return new ImageIcon(url).getImage();
-        } catch (Exception ignored) {}
-
-        // 2) fallback file system
-        File f = new File(fileName);
-        if (!f.exists()) f = new File(System.getProperty("user.dir"), fileName);
-        if (!f.exists()) return null;
-
-        return new ImageIcon(f.getAbsolutePath()).getImage();
-    }
-
-
-    // =====================================================================================
     // SETUP MODE
-    // =====================================================================================
     private void setupGameMode() {
         String[] options = {"Agent vs Agent (PvP)", "Agent vs Auto-Bot (PvE)"};
         int choice = JOptionPane.showOptionDialog(
@@ -274,15 +213,8 @@ public class MainGameGUI extends JFrame {
         if (name.trim().isEmpty()) name = "Rookie";
 
         turnQueue.clear();
-
-        Player human = new Player(name, startNode, colors[0], false);
-        human.setIcon(loadIcon(ICON_JUDY));
-
-        Player bot = new Player("Flash (Bot)", startNode, colors[1], true);
-        bot.setIcon(loadIcon(ICON_FLASH)); // kalau ga ada file, aman (null)
-
-        turnQueue.add(human);
-        turnQueue.add(bot);
+        turnQueue.add(new Player(name, startNode, colors[0], false));
+        turnQueue.add(new Player("Flash (Bot)", startNode, colors[1], true));
 
         finishSetup();
     }
@@ -296,15 +228,7 @@ public class MainGameGUI extends JFrame {
             String name = JOptionPane.showInputDialog(this, "Officer " + (i + 1) + " Name:");
             if (name == null) { closeToMenu(); return; }
             if (name.trim().isEmpty()) name = "Officer " + (i + 1);
-
-            Player p = new Player(name, startNode, colors[i], false);
-
-            if (i == 0) p.setIcon(loadIcon(ICON_JUDY));
-            if (i == 1) p.setIcon(loadIcon(ICON_NICK));
-            if (i == 2) p.setIcon(loadIcon(ICON_BOGO));
-            if (i == 3) p.setIcon(loadIcon(ICON_GAZELLE));
-
-            turnQueue.add(p);
+            turnQueue.add(new Player(name, startNode, colors[i], false));
         }
         finishSetup();
     }
@@ -321,9 +245,7 @@ public class MainGameGUI extends JFrame {
         gamePanel.repaint();
     }
 
-    // =====================================================================================
     // RESTART
-    // =====================================================================================
     public void restartGame() {
         int confirm = JOptionPane.showConfirmDialog(
                 this,
@@ -368,9 +290,7 @@ public class MainGameGUI extends JFrame {
         if (lockAnimationTimer != null) lockAnimationTimer.stop();
     }
 
-    // =====================================================================================
     // GAME LOOP
-    // =====================================================================================
     public void startGame() {
         if (turnQueue.isEmpty()) return;
 
@@ -381,7 +301,8 @@ public class MainGameGUI extends JFrame {
         updatePlayerInfoLabels();
         controlPanel.setStatus("PATROL STARTED!");
 
-        audio.playBackgroundMusic(BGM_FILE); // loop di AudioManager
+        // BGM
+        audio.playBackgroundMusic(BGM_FILE);
 
         checkBotTurn();
     }
@@ -405,7 +326,6 @@ public class MainGameGUI extends JFrame {
         controlPanel.btnRoll.setEnabled(false);
 
         audio.playEffect(SFX_DICE);
-
         startDiceAnimation();
     }
 
@@ -432,7 +352,7 @@ public class MainGameGUI extends JFrame {
         Player p = turnQueue.peek();
         if (p == null) return;
 
-        // store last node id (prime-start check)
+        // simpan posisi awal turn (prime-start)
         p.setLastPositionId(p.getCurrentPosition().id);
 
         Random rand = new Random();
@@ -443,7 +363,8 @@ public class MainGameGUI extends JFrame {
         controlPanel.updateDiceVisual(finalDice, isGreen);
         controlPanel.log(p.getName() + " rolls " + finalDice + (isGreen ? " (FWD/Green)" : " (BACK/Red)"));
 
-        audio.playWalkSound(); // loop jalan
+        // walk loop
+        audio.playWalkSound(SFX_WALK);
         startMovementAnimation(p, finalDice, isGreen);
     }
 
@@ -536,7 +457,6 @@ public class MainGameGUI extends JFrame {
     private void prepareClimb(Player player) {
         Node current = player.getCurrentPosition();
         controlPanel.log("Taking Shortcut...");
-
         audio.playEffect(SFX_LADDER);
 
         animatingPlayer = player;
@@ -582,21 +502,19 @@ public class MainGameGUI extends JFrame {
 
         if (currentId % 5 == 0 && currentId != 64) {
             audio.playEffect(SFX_CRATE);
-
             controlPanel.log("SUPPLY BOX! Extra Turn!");
             JOptionPane.showMessageDialog(this, "SUPPLY BOX FOUND!\nExtra Turn for " + p.getName());
             bonusTurn = true;
         }
 
-        int points = gameBoard.getPointsAt(currentId);
-        if (points > 0) {
+        int pts = gameBoard.getPointsAt(currentId);
+        if (pts > 0) {
             audio.playEffect(SFX_PAWPSICLE);
-
-            p.addScore(points);
+            p.addScore(pts);
             gameBoard.removePoints(currentId);
             gamePanel.repaint();
-            controlPanel.log("Evidence +" + points + " Pawpsicles!");
-            JOptionPane.showMessageDialog(this, "EVIDENCE FOUND!\n+" + points + " Pawpsicles!");
+            controlPanel.log("Evidence +" + pts + " Pawpsicles!");
+            JOptionPane.showMessageDialog(this, "EVIDENCE FOUND!\n+" + pts + " Pawpsicles!");
             controlPanel.updateScoreboard(turnQueue);
         }
 
@@ -617,9 +535,7 @@ public class MainGameGUI extends JFrame {
         }
     }
 
-    // =====================================================================================
     // WIN
-    // =====================================================================================
     private void saveWinner(String name, int score) {
         try (PrintWriter writer = new PrintWriter(new FileWriter(SAVE_FILE_NAME))) {
             writer.println(name);
@@ -632,7 +548,7 @@ public class MainGameGUI extends JFrame {
     private void handleWin(Player winner) {
         audio.stopWalkSound();
         audio.stopMusic();
-        audio.playWinSound();
+        audio.playWinSound(SFX_WIN);
 
         saveWinner(winner.getName(), winner.getScore());
         controlPanel.updateLastWinnerUI(winner.getName(), winner.getScore());
@@ -653,17 +569,15 @@ public class MainGameGUI extends JFrame {
         controlPanel.lblCurrentName.setText(current.getName());
 
         if (turnQueue.size() > 1) {
-            Object[] players = turnQueue.toArray();
-            Player next = (Player) players[1];
+            Object[] arr = turnQueue.toArray();
+            Player next = (Player) arr[1];
             controlPanel.lblNextName.setText("NEXT: " + next.getName());
         } else {
             controlPanel.lblNextName.setText("NEXT: -");
         }
     }
 
-    // =====================================================================================
     // RULES DIALOG
-    // =====================================================================================
     private void showRulesDialog() {
         JDialog d = new JDialog(this, "ZPD: FIELD MANUAL", true);
         d.setSize(560, 520);
@@ -675,6 +589,7 @@ public class MainGameGUI extends JFrame {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g;
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
                 GradientPaint gp = new GradientPaint(
                         0, 0, new Color(245, 248, 255),
                         0, getHeight(), new Color(220, 235, 255)

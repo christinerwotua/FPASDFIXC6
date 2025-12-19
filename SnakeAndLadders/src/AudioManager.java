@@ -1,180 +1,189 @@
 import javax.sound.sampled.*;
-import java.io.File;
+import java.io.*;
+import java.util.HashMap;
+import java.util.Map;
 
 public class AudioManager {
+
     private Clip bgmClip;
-    private Clip sfxClip;
     private Clip walkClip;
-    private Clip winClip;
 
     private boolean muted = false;
-    private int bgmVolume = 50;
+    private float bgmVolumeDb = -10f;
+    private int bgmPausedFrame = 0;
+    private int walkPausedFrame = 0;
 
-    private String lastBgmFile = null;
+
+    private final Map<String, Clip> sfxCache = new HashMap<>();
+
+    // ====== dipanggil MainGameGUI ======
+    public void playBackgroundMusic(String fileName) {
+        if (muted) return;
+        stopMusic();
+        bgmClip = loadClipSmart(fileName);
+        if (bgmClip == null) return;
+
+        applyVolume(bgmClip, bgmVolumeDb);
+        bgmClip.loop(Clip.LOOP_CONTINUOUSLY);
+        bgmClip.start();
+    }
+
+    public void stopMusic() {
+        stopClip(bgmClip);
+        bgmClip = null;
+    }
+
+    public void playEffect(String fileName) {
+        if (muted) return;
+
+        Clip clip = sfxCache.get(fileName);
+        if (clip == null) {
+            clip = loadClipSmart(fileName);
+            if (clip == null) return;
+            sfxCache.put(fileName, clip);
+        }
+
+        if (clip.isRunning()) clip.stop();
+        clip.setFramePosition(0);
+        clip.start();
+    }
+
+    public void playWalkSound() {
+        if (muted) return;
+        stopWalkSound();
+        walkClip = loadClipSmart("walk.wav"); // sesuai nama file kamu
+        if (walkClip == null) return;
+
+        applyVolume(walkClip, -8f);
+        walkClip.loop(Clip.LOOP_CONTINUOUSLY);
+        walkClip.start();
+    }
+
+    public void stopWalkSound() {
+        stopClip(walkClip);
+        walkClip = null;
+    }
+
+    public void playWinSound() {
+        playEffect("win.wav");
+    }
+
+    // tombol mute kamu sekarang harus mute SEMUA (BGM + SFX)
+    public void toggleMuteAll() {
+        muted = !muted;
+
+        if (muted) {
+            // PAUSE (jangan close)
+            if (bgmClip != null) {
+                bgmPausedFrame = bgmClip.getFramePosition();
+                bgmClip.stop();
+            }
+            if (walkClip != null) {
+                walkPausedFrame = walkClip.getFramePosition();
+                walkClip.stop();
+            }
+        } else {
+            // RESUME dari frame terakhir
+            if (bgmClip != null) {
+                bgmClip.setFramePosition(Math.max(0, bgmPausedFrame));
+                applyVolume(bgmClip, bgmVolumeDb);
+                bgmClip.loop(Clip.LOOP_CONTINUOUSLY);
+                bgmClip.start();
+            }
+            if (walkClip != null) {
+                walkClip.setFramePosition(Math.max(0, walkPausedFrame));
+                applyVolume(walkClip, -8f);
+                walkClip.loop(Clip.LOOP_CONTINUOUSLY);
+                walkClip.start();
+            }
+        }
+    }
+
 
     public boolean isMuted() {
         return muted;
     }
 
-    public void setBgmVolume(int sliderValue) {
-        bgmVolume = sliderValue;
-        if (bgmClip != null && bgmClip.isOpen() && !muted) {
-            setClipVolume(bgmClip, bgmVolume);
-        }
+    public void setBgmVolume(int slider0to100) {
+        float db = (slider0to100 / 100f) * 0f + (1f - (slider0to100 / 100f)) * (-40f);
+        bgmVolumeDb = db;
+        if (bgmClip != null) applyVolume(bgmClip, bgmVolumeDb);
     }
 
-    public void toggleMuteAll() {
-        muted = !muted;
-
-        if (muted) {
-            // stop everything
-            stopMusic();
-            stopSfxNow();
-            stopWalkSound();
-            stopWinSound();
-        } else {
-            // kalau sebelumnya ada BGM terakhir, nyalakan lagi
-            if (lastBgmFile != null) {
-                playBackgroundMusic(lastBgmFile);
+    // ====================== LOADER PENTING ======================
+    // ini yang bikin "bisa di semua workspace"
+    private Clip loadClipSmart(String fileName) {
+        try {
+            AudioInputStream ais = openAudioStream(fileName);
+            if (ais == null) {
+                System.out.println("[AUDIO] NOT FOUND: " + fileName);
+                return null;
             }
+
+            AudioFormat base = ais.getFormat();
+
+            // force PCM_SIGNED 16-bit biar kompatibel
+            AudioFormat decoded = new AudioFormat(
+                    AudioFormat.Encoding.PCM_SIGNED,
+                    base.getSampleRate(),
+                    16,
+                    base.getChannels(),
+                    base.getChannels() * 2,
+                    base.getSampleRate(),
+                    false
+            );
+
+            AudioInputStream dais = AudioSystem.getAudioInputStream(decoded, ais);
+            Clip clip = AudioSystem.getClip();
+            clip.open(dais);
+            return clip;
+
+        } catch (Exception e) {
+            System.out.println("[AUDIO] FAILED LOAD: " + fileName);
+            e.printStackTrace();
+            return null;
         }
     }
 
-    public void playBackgroundMusic(String filePath) {
-        lastBgmFile = filePath;
-        if (muted) return;
-
+    // buka dari 3 tempat:
+    // 1) classpath resource (/src)
+    // 2) working directory
+    // 3) project root (user.dir)
+    private AudioInputStream openAudioStream(String fileName) {
+        // (1) classpath: file ada di src -> bisa diakses via getResourceAsStream
         try {
-            File musicPath = resolveFile(filePath);
-            if (!musicPath.exists()) return;
+            InputStream in = AudioManager.class.getResourceAsStream("/" + fileName);
+            if (in != null) return AudioSystem.getAudioInputStream(new BufferedInputStream(in));
+        } catch (Exception ignored) {}
 
-            stopMusic();
+        // (2) working dir
+        try {
+            File f = new File(fileName);
+            if (f.exists()) return AudioSystem.getAudioInputStream(f);
+        } catch (Exception ignored) {}
 
-            AudioInputStream audioInput = AudioSystem.getAudioInputStream(musicPath);
-            bgmClip = AudioSystem.getClip();
-            bgmClip.open(audioInput);
+        // (3) project root
+        try {
+            File f = new File(System.getProperty("user.dir"), fileName);
+            if (f.exists()) return AudioSystem.getAudioInputStream(f);
+        } catch (Exception ignored) {}
 
-            setClipVolume(bgmClip, bgmVolume);
-            bgmClip.loop(Clip.LOOP_CONTINUOUSLY);
-            bgmClip.start();
+        return null;
+    }
+
+    private void stopClip(Clip c) {
+        if (c == null) return;
+        try {
+            c.stop();
+            c.close();
         } catch (Exception ignored) {}
     }
 
-    public void playEffect(String filePath) {
-        if (muted) return;
-
+    private void applyVolume(Clip clip, float dB) {
         try {
-            File sfxPath = resolveFile(filePath);
-            if (!sfxPath.exists()) return;
-
-            if (sfxClip != null && sfxClip.isRunning()) { sfxClip.stop(); sfxClip.close(); }
-
-            AudioInputStream audioInput = AudioSystem.getAudioInputStream(sfxPath);
-            sfxClip = AudioSystem.getClip();
-            sfxClip.open(audioInput);
-
-            // volume effect fixed (boleh kamu ubah)
-            setClipVolume(sfxClip, 100);
-            sfxClip.start();
+            FloatControl gain = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+            float clamped = Math.max(gain.getMinimum(), Math.min(gain.getMaximum(), dB));
+            gain.setValue(clamped);
         } catch (Exception ignored) {}
-    }
-
-    public void playWalkSound() {
-        if (muted) return;
-
-        try {
-            File walkPath = resolveFile("walk.wav");
-            if (!walkPath.exists()) return;
-
-            stopWalkSound();
-
-            AudioInputStream audioInput = AudioSystem.getAudioInputStream(walkPath);
-            walkClip = AudioSystem.getClip();
-            walkClip.open(audioInput);
-
-            setClipVolume(walkClip, 90);
-            walkClip.loop(Clip.LOOP_CONTINUOUSLY);
-            walkClip.start();
-        } catch (Exception ignored) {}
-    }
-
-    public void stopWalkSound() {
-        if (walkClip != null) {
-            try {
-                if (walkClip.isRunning()) walkClip.stop();
-                walkClip.close();
-            } catch (Exception ignored) {}
-        }
-    }
-
-    public void playWinSound() {
-        if (muted) return;
-
-        try {
-            File winPath = resolveFile("win.wav");
-            if (!winPath.exists()) return;
-
-            stopWinSound();
-
-            AudioInputStream audioInput = AudioSystem.getAudioInputStream(winPath);
-            winClip = AudioSystem.getClip();
-            winClip.open(audioInput);
-
-            setClipVolume(winClip, 100);
-            winClip.start();
-        } catch (Exception ignored) {}
-    }
-
-    private void stopWinSound() {
-        if (winClip != null) {
-            try {
-                if (winClip.isRunning()) winClip.stop();
-                winClip.close();
-            } catch (Exception ignored) {}
-        }
-    }
-
-    public void stopMusic() {
-        if (bgmClip != null) {
-            try {
-                if (bgmClip.isRunning()) bgmClip.stop();
-                bgmClip.close();
-            } catch (Exception ignored) {}
-        }
-    }
-
-    private void stopSfxNow() {
-        if (sfxClip != null) {
-            try {
-                if (sfxClip.isRunning()) sfxClip.stop();
-                sfxClip.close();
-            } catch (Exception ignored) {}
-        }
-    }
-
-    private void setClipVolume(Clip clip, int sliderValue) {
-        if (clip != null && clip.isOpen()) {
-            try {
-                FloatControl gainControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-                float maxVol = gainControl.getMaximum();
-                float minVol = gainControl.getMinimum();
-
-                float db;
-                if (sliderValue <= 0) db = minVol;
-                else if (sliderValue > 100) db = maxVol;
-                else db = (float) (6.0f + 20.0f * Math.log10(sliderValue / 50.0));
-
-                if (db > maxVol) db = maxVol;
-                if (db < minVol) db = minVol;
-
-                gainControl.setValue(db);
-            } catch (Exception ignored) {}
-        }
-    }
-
-    private File resolveFile(String fileName) {
-        File f = new File(fileName);
-        if (!f.exists()) f = new File(System.getProperty("user.dir"), fileName);
-        return f;
     }
 }
